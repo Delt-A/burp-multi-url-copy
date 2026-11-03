@@ -27,7 +27,10 @@ Verified against the installed Auth Analyzer 1.1.14
 - its table never calls `setSelectionMode(...)`, so Swing's default
   `MULTIPLE_INTERVAL_SELECTION` is active — multi-row selection already
   works there;
-- the table carries no `JPopupMenu`, only an `addMouseListener`;
+- the table's own right-click menu is built in `CenterPanel$5.mouseReleased`,
+  an anonymous `MouseListener` - not on the table as a
+  `componentPopupMenu`, which is why a first pass over `CenterPanel`
+  alone wrongly concluded there was no menu;
 - `RequestTableModel.getValueAt` exposes `Id`, `Method`, `Host`,
   `URL` (path only), `Status`, `Length` as plain values.
 
@@ -88,6 +91,36 @@ Ctrl+Alt+U  → HotkeyDispatcher
             → nearest enclosing JTable (or null)
             → TableScraper → UrlFormatter → clipboard
 ```
+
+Any other table, by right-click — heuristic, same pipeline:
+
+```
+right-click → TablePopupInstaller (toolkit AWTEventListener)
+            → snapshot selection on MOUSE_PRESSED
+            → act after MOUSE_RELEASED
+            → host popup open?  yes → append a "Copy URLs" submenu to it
+                                no  → show our own popup
+            → TableScraper → UrlFormatter → clipboard
+```
+
+Three rules keep this out of everyone's way:
+
+- **Act after the release, never the press.** On X11 a right-click is a
+  popup trigger on `MOUSE_PRESSED`, but extensions commonly build their
+  menu in `mouseReleased`. Opening on the press swallowed the release and
+  made Auth Analyzer's own menu vanish.
+- **Append, do not replace.** A table that already produced a popup keeps
+  it; the submenu is added and the popup re-shown at the same point,
+  which is what re-packs an already-visible `JPopupMenu`.
+- **Stand down on Burp's own tables.** `provideMenuItems` is called only
+  for Burp-owned components, so a call within the last 500 ms means Burp
+  is building the menu and already has our entries.
+
+The selection is snapshotted during the toolkit callback, which runs
+before the event reaches the component, because Swing's own handler
+collapses a multi-row selection to the clicked row. It is restored only
+under our own menu: a host extension's items may act on the selection
+themselves, and rewriting it underneath would change what they do.
 
 ## `UrlFormatter` — four formats
 
