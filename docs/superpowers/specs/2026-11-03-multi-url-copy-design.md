@@ -31,8 +31,21 @@ Verified against the installed Auth Analyzer 1.1.14
 - `RequestTableModel.getValueAt` exposes `Id`, `Method`, `Host`,
   `URL` (path only), `Status`, `Length` as plain values.
 
+Montoya's own hotkey API does not close this gap either. As of
+2026.7, `UserInterface.registerHotKeyHandler` binds a handler to a
+`HotKeyContext`, and that enum has exactly five members —
+`HTTP_MESSAGE_EDITOR`, `PROXY_HTTP_HISTORY`, `INTRUDER_ATTACK_RESULTS`,
+`ORGANIZER_ENTRIES`, `SITE_MAP_CONTENTS_TABLE`. All five are Burp's own;
+no extension table can be addressed.
+
 So the extension needs two trigger paths: the Montoya context menu for
 Burp's tables, and a Swing-level global hotkey for everything else.
+
+Only one hotkey mechanism is registered, and it is the Swing one. A
+`KeyEventDispatcher` sees a key press before Burp's own bindings and
+consumes it, so a Burp-registered `HotKeyHandler` on the same combination
+would never fire. Registering both would be dead code at best and a
+double copy at worst.
 
 ## Architecture
 
@@ -191,7 +204,12 @@ Analyzer (hotkey path).
 
 ## Build
 
-Gradle wrapper, output a shadow jar.
+Gradle wrapper 9.8.2, output a plain `jar`.
+
+No shadow/fat jar is needed. Montoya is `compileOnly` — Burp supplies it
+at runtime — and JUnit is `testImplementation`, so the extension has zero
+runtime dependencies and the standard `jar` task produces a loadable
+artifact. This also keeps the build free of the shadow plugin.
 
 The machine previously carried exactly one JDK with `javac` — OpenJDK 11
 — while 17, 21, 23 and 25 were JREs only. The Montoya API publishes a
@@ -202,11 +220,12 @@ the network on first build.
 
 Gradle therefore runs on JDK 25 and compiles with `release = 17`: source
 and target stay on the version Montoya requires, while the toolchain is
-the one the machine actually has. The Gradle wrapper version must be one
-that supports running on Java 25 (Gradle 9.x); an older wrapper will
-refuse the daemon.
+the one the machine actually has. The wrapper is pinned to Gradle 9.8.2;
+the cached 8.5 cannot run a daemon on Java 25.
 
-Montoya `2023.12.1` is already in the Gradle cache.
+Montoya `2026.7` is the current release and, at a lower number than the
+installed Burp Suite Pro 2026.10.1, is guaranteed to be present at
+runtime. It is Java 17 bytecode, so `release = 17` still holds.
 `options.encoding = 'UTF-8'` is set so the build is locale-independent.
 
 ## Out of scope
