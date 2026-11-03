@@ -140,6 +140,13 @@ Rules:
 - A missing query renders as nothing, not as a bare `?`.
 - Percent-encoding present in the source is preserved verbatim; the
   formatter never re-encodes or decodes.
+- A URL `java.net.URI` refuses is still parsed. Real traffic carries
+  unencoded `{}`, spaces, `|`, `"` and `^` in query strings - Firefox's
+  addon update check sends `appID={uuid}` on every run, and it is in this
+  machine's own Proxy history. `UrlParser` tries `URI` first, for its
+  correctness and its raw accessors, and falls back to a permissive
+  whole-string pattern that allows those characters anywhere in the path
+  and query rather than truncating at the first one.
 - `METHOD_AND_URL` renders `-` when the method is unknown, so the column
   count per line stays stable for `awk`/`cut`.
 - Deduplication is applied only by `FULL_URL_DEDUP`. The other three
@@ -227,6 +234,13 @@ A single Burp tab named **Copy URLs**:
 - hotkey chooser (modifiers + key), persisted;
 - default format for the hotkey path, persisted;
 - read-only pane showing the last copied payload and any warning.
+
+The warning colour is taken from the look-and-feel - Burp themes through
+FlatLaf, which publishes warning and accent colours already tuned to the
+active theme - and only falls back to a fixed tone, chosen by the panel
+background's lightness, if no such key exists. It is re-derived in
+`updateUI`, so a warning shown under one theme does not keep the other
+theme's palette after a switch.
 
 ## Testing
 

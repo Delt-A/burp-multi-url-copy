@@ -2112,10 +2112,11 @@ Tasks 6, 8 and 9. `Settings.hotkey/setHotkey/defaultFormat/setDefaultFormat`
 match between Tasks 8 and 9. `CopyReporter.report` is implemented by
 `SettingsTab` in Task 8 and consumed in Task 9.
 
-**Known risk, carried deliberately.** `UrlParser.parse` uses
-`java.net.URI`, which rejects some URLs a browser accepts — an unencoded
-space or a literal `|` in a query, for example. Those rows land in
-`failedRows` and are therefore *reported*, never silently dropped. If
-real traffic shows this firing often, the fix is a regex fallback inside
-`UrlParser.parse`; it is not worth building before the failure is
-observed.
+**Known risk — observed, then fixed.** `UrlParser.parse` used
+`java.net.URI`, which rejects some URLs a browser accepts. A search of
+this machine's own Proxy history found the case firing routinely:
+Firefox's addon update check sends `appID={uuid}` unencoded on every run.
+`UrlParser.parse` now falls back to a permissive whole-string pattern
+when `URI` refuses, allowing `{}`, spaces, `|`, `"` and `^` anywhere in
+the path and query. `URI` still runs first, for its correctness and its
+raw accessors.

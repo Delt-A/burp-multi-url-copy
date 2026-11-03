@@ -17,7 +17,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.FlowLayout;
 
 /**
@@ -31,6 +30,9 @@ public class SettingsTab extends JPanel implements CopyReporter {
     private final JLabel statusLabel = new JLabel("no copy yet");
     private final JTextArea lastPayload = new JTextArea();
     private final JButton hotkeyButton = new JButton();
+
+    /** Kept so the status colour can be re-derived when the theme changes. */
+    private CopyOutcome lastOutcome;
 
     public SettingsTab(Settings settings, Logging logging) {
         super(new BorderLayout(8, 8));
@@ -96,12 +98,32 @@ public class SettingsTab extends JPanel implements CopyReporter {
     @Override
     public void report(CopyOutcome outcome) {
         SwingUtilities.invokeLater(() -> {
+            lastOutcome = outcome;
             statusLabel.setText(outcome.statusLine());
-            statusLabel.setForeground(
-                    outcome.shouldWriteClipboard() && !outcome.isPartial() ? null : Color.ORANGE.darker());
+            applyStatusColour();
             lastPayload.setText(outcome.payload());
             lastPayload.setCaretPosition(0);
         });
         logging.logToOutput(outcome.statusLine());
+    }
+
+    /**
+     * Burp swaps the look-and-feel in place when the theme changes, which
+     * reaches every component as {@code updateUI}. Re-deriving the colour
+     * here stops a warning shown under one theme from staying in the other
+     * theme's palette.
+     */
+    @Override
+    public void updateUI() {
+        super.updateUI();
+        if (statusLabel != null) {
+            SwingUtilities.invokeLater(this::applyStatusColour);
+        }
+    }
+
+    private void applyStatusColour() {
+        boolean cleanSuccess = lastOutcome == null
+                || (lastOutcome.shouldWriteClipboard() && !lastOutcome.isPartial());
+        statusLabel.setForeground(cleanSuccess ? null : WarningColor.forBackground(getBackground()));
     }
 }
