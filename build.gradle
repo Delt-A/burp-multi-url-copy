@@ -31,4 +31,10 @@ tasks.named('test') {
 
 jar {
     archiveBaseName = 'multi-url-copy'
+    manifest {
+        // The ServiceLoader file under META-INF/services is what Montoya
+        // actually reads; this attribute is a harmless second declaration
+        // so the jar still names its entry point if the resource is lost.
+        attributes 'Extension-ClassName': 'multiurlcopy.burp.MultiUrlCopyExtension'
+    }
 }

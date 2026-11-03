@@ -13,9 +13,14 @@ public final class CopyService {
     }
 
     public static void perform(CopyOutcome outcome, CopyReporter reporter) {
+        CopyOutcome result = outcome;
         if (outcome.shouldWriteClipboard()) {
-            ClipboardWriter.write(outcome.payload());
+            try {
+                ClipboardWriter.write(outcome.payload());
+            } catch (RuntimeException | Error e) {
+                result = CopyOutcome.clipboardFailed(outcome.payload(), String.valueOf(e.getMessage()));
+            }
         }
-        reporter.report(outcome);
+        reporter.report(result);
     }
 }

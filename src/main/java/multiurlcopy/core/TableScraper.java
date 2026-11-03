@@ -26,8 +26,15 @@ public final class TableScraper {
         int failed = 0;
 
         for (int viewRow : viewRows) {
-            int modelRow = table.convertRowIndexToModel(viewRow);
-            Optional<UrlEntry> entry = scrapeRow(model, modelRow);
+            Optional<UrlEntry> entry;
+            try {
+                entry = scrapeRow(model, table.convertRowIndexToModel(viewRow));
+            } catch (RuntimeException e) {
+                // getValueAt and getColumnName belong to another extension.
+                // A row that throws is a row we could not read - count it,
+                // do not let it abort the rows that did work.
+                entry = Optional.empty();
+            }
             if (entry.isPresent()) {
                 entries.add(entry.get());
             } else {

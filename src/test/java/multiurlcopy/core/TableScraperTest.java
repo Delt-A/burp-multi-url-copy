@@ -158,4 +158,27 @@ class TableScraperTest {
         assertEquals("https://right.com/ok",
                 UrlFormatter.format(TableScraper.scrape(t).entries(), UrlFormat.FULL_URL));
     }
+
+    /** A third-party TableModel is foreign code and may throw; one bad row must not kill the copy. */
+    @Test
+    void aRowWhoseModelThrowsIsCountedAsFailedNotPropagated() {
+        DefaultTableModel model = new DefaultTableModel(
+                new Object[][]{{"a.com", "/x"}, {"b.com", "/y"}}, new String[]{"Host", "Path"}) {
+            @Override
+            public Object getValueAt(int row, int column) {
+                if (row == 1) {
+                    throw new IllegalStateException("boom");
+                }
+                return super.getValueAt(row, column);
+            }
+        };
+        JTable t = new JTable(model);
+        t.setRowSelectionInterval(0, 1);
+
+        ScrapeResult result = TableScraper.scrape(t);
+
+        assertEquals(1, result.entries().size());
+        assertEquals(1, result.failedRows());
+        assertEquals(2, result.total());
+    }
 }

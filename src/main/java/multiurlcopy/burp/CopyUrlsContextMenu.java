@@ -49,12 +49,16 @@ public class CopyUrlsContextMenu implements ContextMenuItemsProvider {
     }
 
     private void copy(List<HttpRequestResponse> selected, UrlFormat format) {
-        List<UrlEntry> entries = new ArrayList<>(selected.size());
-        for (HttpRequestResponse item : selected) {
-            HttpRequest request = item.request();
-            UrlParser.parse(request.url(), request.method()).ifPresent(entries::add);
+        try {
+            List<UrlEntry> entries = new ArrayList<>(selected.size());
+            for (HttpRequestResponse item : selected) {
+                HttpRequest request = item.request();
+                UrlParser.parse(request.url(), request.method()).ifPresent(entries::add);
+            }
+            String payload = UrlFormatter.format(entries, format);
+            CopyService.perform(CopyOutcome.of(payload, entries.size(), selected.size()), reporter);
+        } catch (RuntimeException e) {
+            CopyService.perform(CopyOutcome.error("copy failed: " + e), reporter);
         }
-        String payload = UrlFormatter.format(entries, format);
-        CopyService.perform(CopyOutcome.of(payload, entries.size(), selected.size()), reporter);
     }
 }

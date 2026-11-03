@@ -24,6 +24,23 @@ public record CopyOutcome(String payload, int copied, int total, String reason) 
         return new CopyOutcome("", 0, 0, "no table focused");
     }
 
+    /**
+     * Something threw where a copy was expected. Surfaced, never swallowed:
+     * a silent no-op would be indistinguishable from an empty selection.
+     */
+    public static CopyOutcome error(String message) {
+        return new CopyOutcome("", 0, 0, message);
+    }
+
+    /**
+     * The text was built but the system clipboard refused it - an X11
+     * clipboard owner can be busy. Not a success, but the payload is kept
+     * so the settings tab can still show it for a manual copy.
+     */
+    public static CopyOutcome clipboardFailed(String payload, String message) {
+        return new CopyOutcome(payload, 0, 0, "clipboard unavailable: " + message);
+    }
+
     /** False whenever nothing was recognized, so an existing clipboard survives. */
     public boolean shouldWriteClipboard() {
         return copied > 0;

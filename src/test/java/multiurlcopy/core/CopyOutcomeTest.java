@@ -61,4 +61,22 @@ class CopyOutcomeTest {
         assertFalse(outcome.shouldWriteClipboard());
         assertEquals("nothing copied - no table focused", outcome.statusLine());
     }
+
+    @Test
+    void anErrorIsSurfacedNotSwallowed() {
+        CopyOutcome outcome = CopyOutcome.error("table model threw: boom");
+
+        assertFalse(outcome.shouldWriteClipboard());
+        assertFalse(outcome.isPartial());
+        assertEquals("nothing copied - table model threw: boom", outcome.statusLine());
+    }
+
+    @Test
+    void aFailedClipboardWriteKeepsThePayloadVisibleButIsNotASuccess() {
+        CopyOutcome outcome = CopyOutcome.clipboardFailed("https://a.com/x", "owner is busy");
+
+        assertFalse(outcome.shouldWriteClipboard());
+        assertEquals("https://a.com/x", outcome.payload());
+        assertEquals("nothing copied - clipboard unavailable: owner is busy", outcome.statusLine());
+    }
 }
