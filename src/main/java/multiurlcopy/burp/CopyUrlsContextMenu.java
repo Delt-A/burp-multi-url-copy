@@ -27,13 +27,19 @@ import java.util.List;
 public class CopyUrlsContextMenu implements ContextMenuItemsProvider {
 
     private final CopyReporter reporter;
+    private final BurpMenuActivity burpMenuActivity;
 
-    public CopyUrlsContextMenu(CopyReporter reporter) {
+    public CopyUrlsContextMenu(CopyReporter reporter, BurpMenuActivity burpMenuActivity) {
         this.reporter = reporter;
+        this.burpMenuActivity = burpMenuActivity;
     }
 
     @Override
     public List<Component> provideMenuItems(ContextMenuEvent event) {
+        // Burp only asks for items on components it owns, so this call is
+        // the signal TablePopupInstaller uses to keep its own menu shut.
+        burpMenuActivity.markInvoked();
+
         List<HttpRequestResponse> selected = event.selectedRequestResponses();
         if (selected.isEmpty()) {
             return List.of();
