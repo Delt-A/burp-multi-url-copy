@@ -1,6 +1,7 @@
 package multiurlcopy.ui;
 
 import burp.api.montoya.logging.Logging;
+import burp.api.montoya.ui.swing.SwingUtils;
 import multiurlcopy.core.CopyOutcome;
 import multiurlcopy.core.CopyReporter;
 import multiurlcopy.core.Hotkey;
@@ -27,6 +28,7 @@ public class SettingsTab extends JPanel implements CopyReporter {
 
     private final Settings settings;
     private final Logging logging;
+    private final SwingUtils swingUtils;
     private final JLabel statusLabel = new JLabel("no copy yet");
     private final JTextArea lastPayload = new JTextArea();
     private final JButton hotkeyButton = new JButton();
@@ -34,10 +36,11 @@ public class SettingsTab extends JPanel implements CopyReporter {
     /** Kept so the status colour can be re-derived when the theme changes. */
     private CopyOutcome lastOutcome;
 
-    public SettingsTab(Settings settings, Logging logging) {
+    public SettingsTab(Settings settings, Logging logging, SwingUtils swingUtils) {
         super(new BorderLayout(8, 8));
         this.settings = settings;
         this.logging = logging;
+        this.swingUtils = swingUtils;
 
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         add(buildControls(), BorderLayout.NORTH);
@@ -84,7 +87,9 @@ public class SettingsTab extends JPanel implements CopyReporter {
 
     private void promptForHotkey() {
         String current = settings.hotkey().display();
-        String input = JOptionPane.showInputDialog(this,
+        // Parented on Burp's own frame, as the BApp Store criteria require,
+        // so the dialog cannot end up behind the suite window.
+        String input = JOptionPane.showInputDialog(swingUtils.suiteFrame(),
                 "Hotkey, e.g. Ctrl+Alt+U\n(Ctrl+U and Ctrl+Shift+U are taken by Burp's URL encode/decode)",
                 current);
         if (input == null) {

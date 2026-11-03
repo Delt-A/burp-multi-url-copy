@@ -3,8 +3,10 @@ package multiurlcopy.burp;
 import multiurlcopy.core.CopyOutcome;
 import multiurlcopy.core.CopyReporter;
 import multiurlcopy.core.CopyService;
+import multiurlcopy.core.CopyWorker;
 import multiurlcopy.core.ScrapeResult;
 import multiurlcopy.core.TableScraper;
+import multiurlcopy.core.UrlFormat;
 import multiurlcopy.core.UrlFormatter;
 import multiurlcopy.ui.Settings;
 
@@ -27,10 +29,12 @@ public class HotkeyDispatcher implements KeyEventDispatcher {
 
     private final Settings settings;
     private final CopyReporter reporter;
+    private final CopyWorker worker;
 
-    public HotkeyDispatcher(Settings settings, CopyReporter reporter) {
+    public HotkeyDispatcher(Settings settings, CopyReporter reporter, CopyWorker worker) {
         this.settings = settings;
         this.reporter = reporter;
+        this.worker = worker;
     }
 
     @Override
@@ -63,8 +67,13 @@ public class HotkeyDispatcher implements KeyEventDispatcher {
             return true;
         }
 
-        String payload = UrlFormatter.format(result.entries(), settings.defaultFormat());
-        CopyService.perform(CopyOutcome.of(payload, result.entries().size(), result.total()), reporter);
+        // The scrape above had to run here, on the event thread, because it
+        // reads a live TableModel. Formatting and the clipboard write do
+        // not, and the clipboard can block, so they go to the worker.
+        UrlFormat format = settings.defaultFormat();
+        worker.submit(() -> CopyOutcome.of(
+                UrlFormatter.format(result.entries(), format),
+                result.entries().size(), result.total()), reporter);
         return true;
     }
 

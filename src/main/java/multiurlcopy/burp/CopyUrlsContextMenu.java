@@ -7,6 +7,7 @@ import burp.api.montoya.ui.contextmenu.ContextMenuItemsProvider;
 import multiurlcopy.core.CopyOutcome;
 import multiurlcopy.core.CopyReporter;
 import multiurlcopy.core.CopyService;
+import multiurlcopy.core.CopyWorker;
 import multiurlcopy.core.UrlEntry;
 import multiurlcopy.core.UrlFormat;
 import multiurlcopy.core.UrlFormatter;
@@ -28,10 +29,12 @@ public class CopyUrlsContextMenu implements ContextMenuItemsProvider {
 
     private final CopyReporter reporter;
     private final BurpMenuActivity burpMenuActivity;
+    private final CopyWorker worker;
 
-    public CopyUrlsContextMenu(CopyReporter reporter, BurpMenuActivity burpMenuActivity) {
+    public CopyUrlsContextMenu(CopyReporter reporter, BurpMenuActivity burpMenuActivity, CopyWorker worker) {
         this.reporter = reporter;
         this.burpMenuActivity = burpMenuActivity;
+        this.worker = worker;
     }
 
     @Override
@@ -61,8 +64,9 @@ public class CopyUrlsContextMenu implements ContextMenuItemsProvider {
                 HttpRequest request = item.request();
                 UrlParser.parse(request.url(), request.method()).ifPresent(entries::add);
             }
-            String payload = UrlFormatter.format(entries, format);
-            CopyService.perform(CopyOutcome.of(payload, entries.size(), selected.size()), reporter);
+            int total = selected.size();
+            worker.submit(() -> CopyOutcome.of(
+                    UrlFormatter.format(entries, format), entries.size(), total), reporter);
         } catch (RuntimeException e) {
             CopyService.perform(CopyOutcome.error("copy failed: " + e), reporter);
         }

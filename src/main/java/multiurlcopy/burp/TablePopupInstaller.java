@@ -3,6 +3,7 @@ package multiurlcopy.burp;
 import multiurlcopy.core.CopyOutcome;
 import multiurlcopy.core.CopyReporter;
 import multiurlcopy.core.CopyService;
+import multiurlcopy.core.CopyWorker;
 import multiurlcopy.core.ScrapeResult;
 import multiurlcopy.core.TableScraper;
 import multiurlcopy.core.UrlFormat;
@@ -64,14 +65,16 @@ public class TablePopupInstaller implements AWTEventListener {
     private final CopyReporter reporter;
     private final BurpMenuActivity burpMenuActivity;
     private final Consumer<Component> applyTheme;
+    private final CopyWorker worker;
 
     private Gesture pending;
 
     public TablePopupInstaller(CopyReporter reporter, BurpMenuActivity burpMenuActivity,
-                               Consumer<Component> applyTheme) {
+                               Consumer<Component> applyTheme, CopyWorker worker) {
         this.reporter = reporter;
         this.burpMenuActivity = burpMenuActivity;
         this.applyTheme = applyTheme;
+        this.worker = worker;
     }
 
     /** A right-click on a table, captured before Swing could disturb it. */
@@ -252,10 +255,12 @@ public class TablePopupInstaller implements AWTEventListener {
 
     private void copy(Gesture gesture, UrlFormat format) {
         try {
+            // Scraping reads a live TableModel and so stays here, on the
+            // event thread; formatting and the clipboard write do not.
             ScrapeResult result = TableScraper.scrape(gesture.table(), gesture.rows());
-            String payload = UrlFormatter.format(result.entries(), format);
-            CopyService.perform(
-                    CopyOutcome.of(payload, result.entries().size(), result.total()), reporter);
+            worker.submit(() -> CopyOutcome.of(
+                    UrlFormatter.format(result.entries(), format),
+                    result.entries().size(), result.total()), reporter);
         } catch (RuntimeException e) {
             CopyService.perform(CopyOutcome.error("copy failed: " + e), reporter);
         }

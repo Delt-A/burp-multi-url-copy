@@ -1,0 +1,33 @@
+<p>Copies the URLs of every selected table row to the clipboard — in Burp's own tables, and in tables drawn by other extensions.</p>
+
+<p>Burp's native tables let you select many rows, but getting their URLs out one by one is slow. Third-party extension tables are worse: an extension's results grid may support multi-row selection and still offer no way to copy anything at all, because Burp only routes context-menu events to components it owns. A tester who wants to feed thirty endpoints from an Auth Analyzer run into ffuf or nuclei ends up retyping them.</p>
+
+<p>This extension closes that gap with three ways in, all feeding the same four output formats.</p>
+
+<p><strong>How to use it</strong></p>
+<ul>
+	<li><strong>Burp's own tables</strong> — select rows, right-click, <em>Copy URLs</em>, pick a format. This path reads the URL straight off the request, so it never guesses.</li>
+	<li><strong>Any other table</strong> — select rows and press <strong>Ctrl+Alt+U</strong>. The format is the default chosen in the <em>Copy URLs</em> tab.</li>
+	<li><strong>Any other table, by right-click</strong> — a <em>Copy URLs</em> submenu is appended to whatever menu that table already shows. A table with no menu of its own gets a standalone one.</li>
+</ul>
+
+<p><strong>Output formats</strong></p>
+<ul>
+	<li><code>Full URL</code> — one per line, ready for <code>ffuf -w</code> or <code>nuclei -l</code></li>
+	<li><code>Full URL (dedup)</code> — duplicates removed, first-occurrence order kept</li>
+	<li><code>METHOD + URL</code> — the method kept as a stable first column for <code>awk</code> or <code>cut</code></li>
+	<li><code>Path only</code> — scheme and host dropped</li>
+</ul>
+
+<p><strong>Partial results are always flagged</strong></p>
+
+<p>Reading a table that another extension drew is necessarily a heuristic: the extension reads that table's public model and nothing else — no reflection into another extension's internals. When some selected rows yield no URL, it copies what it recognized and says so, for example <code>copied 12/15 - 3 rows had no recognizable URL</code>, in the Copy URLs tab and in Burp's output log. When it recognizes nothing at all, the clipboard is left untouched, so a failed attempt never destroys what you had there. The full copied text is always shown in the tab, so you can check it before pasting it into a scanner.</p>
+
+<p>A short list that looked complete would be the worst possible outcome here — the missing endpoint simply never gets tested — so a partial copy is never reported as a plain success.</p>
+
+<p><strong>Settings</strong></p>
+<ul>
+	<li>The hotkey is configurable, and persists with your Burp preferences. The default avoids <code>Ctrl+U</code> and <code>Ctrl+Shift+U</code>, which Burp binds to URL encode and decode.</li>
+	<li>The default format used by the hotkey is configurable.</li>
+	<li>The last copy's full text and status are shown in the tab.</li>
+</ul>
