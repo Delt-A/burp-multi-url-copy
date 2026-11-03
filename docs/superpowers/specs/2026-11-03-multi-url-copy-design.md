@@ -157,6 +157,23 @@ missing endpoint never gets tested. So:
 
 A partial copy is never reported as a plain success.
 
+### Error containment
+
+Three places run foreign or hostile-to-assumptions code, and none of them
+may throw into Burp:
+
+- `TableScraper` calls another extension's `getValueAt` and
+  `getColumnName`. A row that throws is counted in `failedRows` rather
+  than aborting the copy, which preserves the
+  `entries + failedRows == selected` invariant and therefore the honesty
+  of the `N/M` warning.
+- `HotkeyDispatcher.dispatchKeyEvent` runs on every key press anywhere in
+  Burp. An escaping exception would poison the event queue, so the body
+  is wrapped and a failure is reported like any other unsuccessful copy.
+- A system clipboard write can be refused when another X11 owner holds
+  the selection. That is reported as a failure, with the payload kept
+  visible in the tab for a manual copy, never as a success.
+
 ## Hotkey
 
 Default `Ctrl+Alt+U`, verified free against the user's 48 configured Burp
@@ -198,6 +215,8 @@ for real tables:
 - a sorted table → selection maps through `convertRowIndexToModel()`;
 - a mixed table where some rows resolve and others do not → exact
   `failedRows` count.
+- a table model whose `getValueAt` throws on one row → that row counted
+  in `failedRows`, the others still returned.
 
 Manual verification in Burp: Proxy history (context menu path) and Auth
 Analyzer (hotkey path).
