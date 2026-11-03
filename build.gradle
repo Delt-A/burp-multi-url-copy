@@ -29,6 +29,14 @@ tasks.named('test') {
     testLogging { events 'passed', 'failed', 'skipped' }
 }
 
+// Burp holds an open reference to whatever jar it loaded, and
+// `gradlew clean` deletes build/. `install` keeps a stable copy outside
+// build/ so Burp can be pointed at a path that survives a clean.
+tasks.register('install', Copy) {
+    from tasks.named('jar')
+    into "$projectDir/dist"
+}
+
 jar {
     archiveBaseName = 'multi-url-copy'
     manifest {
