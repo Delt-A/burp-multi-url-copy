@@ -30,6 +30,10 @@ tasks.withType(JavaCompile).configureEach {
 tasks.named('test') {
     useJUnitPlatform()
     testLogging { events 'passed', 'failed', 'skipped' }
+    // Run headless on purpose. The suite builds Swing components, which is
+    // fine headless, but a test that quietly depended on a real display or
+    // a system clipboard would otherwise pass here and fail in CI.
+    systemProperty 'java.awt.headless', 'true'
 }
 
 // Burp holds an open reference to whatever jar it loaded, and

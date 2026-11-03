@@ -28,7 +28,7 @@ class CopyWorkerTest {
     @Test
     void theOutcomeIsBuiltAndReportedOffTheCallingThread() throws Exception {
         Latched reporter = new Latched();
-        try (CopyWorker worker = new CopyWorker()) {
+        try (CopyWorker worker = new CopyWorker(text -> { })) {
             worker.submit(() -> CopyOutcome.of("https://a.com/x", 1, 1), reporter);
 
             assertTrue(reporter.done.await(5, TimeUnit.SECONDS), "worker never reported");
@@ -41,7 +41,7 @@ class CopyWorkerTest {
     @Test
     void aBuilderThatThrowsIsReportedRatherThanLost() throws Exception {
         Latched reporter = new Latched();
-        try (CopyWorker worker = new CopyWorker()) {
+        try (CopyWorker worker = new CopyWorker(text -> { })) {
             worker.submit(() -> {
                 throw new IllegalStateException("boom");
             }, reporter);

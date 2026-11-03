@@ -3,6 +3,7 @@ package multiurlcopy.core;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -19,6 +20,16 @@ import java.util.function.Supplier;
  * and it is still shut down explicitly when the extension unloads.
  */
 public final class CopyWorker implements AutoCloseable {
+
+    private final Consumer<String> clipboard;
+
+    public CopyWorker() {
+        this(ClipboardWriter::write);
+    }
+
+    CopyWorker(Consumer<String> clipboard) {
+        this.clipboard = clipboard;
+    }
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor(runnable -> {
         Thread thread = new Thread(runnable, "multi-url-copy");
@@ -38,7 +49,7 @@ public final class CopyWorker implements AutoCloseable {
             } catch (RuntimeException e) {
                 outcome = CopyOutcome.error("copy failed: " + e);
             }
-            CopyService.perform(outcome, reporter);
+            CopyService.perform(outcome, reporter, clipboard);
         });
     }
 
