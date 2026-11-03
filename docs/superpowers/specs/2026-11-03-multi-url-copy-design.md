@@ -27,7 +27,10 @@ Verified against the installed Auth Analyzer 1.1.14
 - its table never calls `setSelectionMode(...)`, so Swing's default
   `MULTIPLE_INTERVAL_SELECTION` is active — multi-row selection already
   works there;
-- the table carries no `JPopupMenu`, only an `addMouseListener`;
+- the table's own right-click menu is built in `CenterPanel$5.mouseReleased`,
+  an anonymous `MouseListener` - not on the table as a
+  `componentPopupMenu`, which is why a first pass over `CenterPanel`
+  alone wrongly concluded there was no menu;
 - `RequestTableModel.getValueAt` exposes `Id`, `Method`, `Host`,
   `URL` (path only), `Status`, `Length` as plain values.
 
@@ -89,6 +92,36 @@ Ctrl+Alt+U  → HotkeyDispatcher
             → TableScraper → UrlFormatter → clipboard
 ```
 
+Any other table, by right-click — heuristic, same pipeline:
+
+```
+right-click → TablePopupInstaller (toolkit AWTEventListener)
+            → snapshot selection on MOUSE_PRESSED
+            → act after MOUSE_RELEASED
+            → host popup open?  yes → append a "Copy URLs" submenu to it
+                                no  → show our own popup
+            → TableScraper → UrlFormatter → clipboard
+```
+
+Three rules keep this out of everyone's way:
+
+- **Act after the release, never the press.** On X11 a right-click is a
+  popup trigger on `MOUSE_PRESSED`, but extensions commonly build their
+  menu in `mouseReleased`. Opening on the press swallowed the release and
+  made Auth Analyzer's own menu vanish.
+- **Append, do not replace.** A table that already produced a popup keeps
+  it; the submenu is added and the popup re-shown at the same point,
+  which is what re-packs an already-visible `JPopupMenu`.
+- **Stand down on Burp's own tables.** `provideMenuItems` is called only
+  for Burp-owned components, so a call within the last 500 ms means Burp
+  is building the menu and already has our entries.
+
+The selection is snapshotted during the toolkit callback, which runs
+before the event reaches the component, because Swing's own handler
+collapses a multi-row selection to the clicked row. It is restored only
+under our own menu: a host extension's items may act on the selection
+themselves, and rewriting it underneath would change what they do.
+
 ## `UrlFormatter` — four formats
 
 | Format | Output |
@@ -107,6 +140,13 @@ Rules:
 - A missing query renders as nothing, not as a bare `?`.
 - Percent-encoding present in the source is preserved verbatim; the
   formatter never re-encodes or decodes.
+- A URL `java.net.URI` refuses is still parsed. Real traffic carries
+  unencoded `{}`, spaces, `|`, `"` and `^` in query strings - Firefox's
+  addon update check sends `appID={uuid}` on every run, and it is in this
+  machine's own Proxy history. `UrlParser` tries `URI` first, for its
+  correctness and its raw accessors, and falls back to a permissive
+  whole-string pattern that allows those characters anywhere in the path
+  and query rather than truncating at the first one.
 - `METHOD_AND_URL` renders `-` when the method is unknown, so the column
   count per line stays stable for `awk`/`cut`.
 - Deduplication is applied only by `FULL_URL_DEDUP`. The other three
@@ -157,6 +197,23 @@ missing endpoint never gets tested. So:
 
 A partial copy is never reported as a plain success.
 
+### Error containment
+
+Three places run foreign or hostile-to-assumptions code, and none of them
+may throw into Burp:
+
+- `TableScraper` calls another extension's `getValueAt` and
+  `getColumnName`. A row that throws is counted in `failedRows` rather
+  than aborting the copy, which preserves the
+  `entries + failedRows == selected` invariant and therefore the honesty
+  of the `N/M` warning.
+- `HotkeyDispatcher.dispatchKeyEvent` runs on every key press anywhere in
+  Burp. An escaping exception would poison the event queue, so the body
+  is wrapped and a failure is reported like any other unsuccessful copy.
+- A system clipboard write can be refused when another X11 owner holds
+  the selection. That is reported as a failure, with the payload kept
+  visible in the tab for a manual copy, never as a success.
+
 ## Hotkey
 
 Default `Ctrl+Alt+U`, verified free against the user's 48 configured Burp
@@ -178,6 +235,13 @@ A single Burp tab named **Copy URLs**:
 - default format for the hotkey path, persisted;
 - read-only pane showing the last copied payload and any warning.
 
+The warning colour is taken from the look-and-feel - Burp themes through
+FlatLaf, which publishes warning and accent colours already tuned to the
+active theme - and only falls back to a fixed tone, chosen by the panel
+background's lightness, if no such key exists. It is re-derived in
+`updateUI`, so a warning shown under one theme does not keep the other
+theme's palette after a switch.
+
 ## Testing
 
 Unit tests (JUnit 5), no Burp runtime required:
@@ -198,6 +262,8 @@ for real tables:
 - a sorted table → selection maps through `convertRowIndexToModel()`;
 - a mixed table where some rows resolve and others do not → exact
   `failedRows` count.
+- a table model whose `getValueAt` throws on one row → that row counted
+  in `failedRows`, the others still returned.
 
 Manual verification in Burp: Proxy history (context menu path) and Auth
 Analyzer (hotkey path).
